@@ -1,0 +1,35 @@
+version: "3.7"
+services:
+  leader:
+    build: builder
+    image: leader-follower:dev
+    ports:
+      - "8000:8000"
+    container_name: "leader-dev"
+    environment:
+      - KeyPrefix=/platform/id_leaf
+      - EtcdHost=:23791,:23792,:23793
+      - BindAddress=:8000
+      - RegisterAddress=:8000
+  follower1:
+    build: builder
+    image: leader-follower:dev
+    ports:
+      - "8001:8000"
+    container_name: "follower1-dev"
+    environment:
+      - KeyPrefix=/platform/id_leaf
+      - EtcdHost=:23791,:23792,:23793
+      - BindAddress=:8000
+      - RegisterAddress=:8001
+  follower2:
+    build: builder
+    image: leader-follower:dev
+    ports:
+      - "8002:8000"
+    container_name: "follower2-dev"
+    environment:
+      - KeyPrefix=/platform/id_leaf
+      - EtcdHost=:23791,:23792,:23793
+      - BindAddress=:8000
+      - RegisterAddress=:8002
