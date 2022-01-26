@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 	"net/http"
@@ -32,16 +33,19 @@ func main() {
 	mu.HandleFunc("/ping", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Write([]byte("pong"))
 	})
-	go func() {
-		err := http.Serve(lis, mu)
-		if err != nil {
+	s := &http.Server{Handler: mu}
+	go func(server *http.Server) {
+		err := server.Serve(lis)
+		if err != nil && err != http.ErrServerClosed {
 			log.Println("serve error", err)
 		}
-	}()
+	}(s)
 	defer func() {
-		defer lis.Close()
+		s.Shutdown(context.Background())
 		common.CloseEtcdClusterClient()
 	}()
+	signs := make(chan os.Signal, 1)
+	signal.Notify(signs, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGKILL)
 	host, err := util.FormatHost(config.RegisterAddress, lis)
 	if err != nil {
 		log.Printf("format host : %s error: %s\n", config.RegisterAddress, err.Error())
@@ -58,16 +62,20 @@ func main() {
 		return
 	}
 	campaignRes := srv.Campaign()
-	campaignErr := <-campaignRes
-	if campaignErr != nil {
-		// campaign error
-		log.Printf("campaign leader srv error: %s\n", campaignErr.Error())
+	select {
+	case <-signs:
+		// 没有成为主服务, 对连接关闭等相关资源回收
+		srv.Stop()
 		return
+	case campaignErr := <-campaignRes:
+		if campaignErr != nil {
+			// campaign error
+			log.Printf("campaign leader srv error: %s\n", campaignErr.Error())
+			return
+		}
+		// call campaignSuccess handle
+		log.Printf("host: %s campaign leader success\n", host)
 	}
-	// call campaignSuccess handle
-	log.Printf("host: %s campaign leader success\n", host)
-	signs := make(chan os.Signal, 1)
-	signal.Notify(signs, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGKILL)
 	<-signs
 	srv.Stop()
 	time.Sleep(1 * time.Second)

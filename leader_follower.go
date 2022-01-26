@@ -54,19 +54,7 @@ func (srv *leaderFollowerSrv) Campaign() chan error {
 }
 
 func (srv *leaderFollowerSrv) Stop() error {
-	// 查看当前leader
-	res, err := srv.election.Leader(srv.ctx)
-	if err == nil {
-		if string(res.Kvs[0].Value) == srv.value {
-			// 优雅停机: 从备份节点重新选举出 leader
-			err = srv.election.Resign(srv.ctx)
-			if err != nil {
-				return err
-			}
-		} else {
-			// 解除参与选举leader
-			srv.cancel()
-		}
-	}
+	srv.election.Resign(srv.ctx)
+	srv.cancel()
 	return srv.session.Close()
 }
