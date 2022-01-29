@@ -51,17 +51,12 @@ func main() {
 		log.Printf("format host : %s error: %s\n", config.RegisterAddress, err.Error())
 		return
 	}
-	cfg := &leaderfollowerpattern.LeaderFollowerConfig{
-		HeartBeatTTL: 5,
-		Prefix:       config.KeyPrefix,
-		Value:        host,
-	}
-	srv, err := leaderfollowerpattern.NewLeaderFollowerSrv(common.EtcdClusterClient, cfg)
+	srv, err := leaderfollowerpattern.NewLeaderFollower(common.EtcdClusterClient, leaderfollowerpattern.Prefix(config.KeyPrefix))
 	if err != nil {
 		log.Printf("Init LeaderFollower srv error: %s\n", err.Error())
 		return
 	}
-	campaignRes := srv.Campaign()
+	campaignRes := srv.Campaign(host)
 	select {
 	case <-signs:
 		// 没有成为主服务, 对连接关闭等相关资源回收
